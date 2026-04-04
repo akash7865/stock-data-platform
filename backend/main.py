@@ -1,10 +1,4 @@
-"""
-main.py — FastAPI Backend for Stock Data Intelligence Dashboard
-────────────────────────────────────────────────────────────────
-Run:       uvicorn main:app --reload          (from backend/ folder)
-Swagger:   http://localhost:8000/docs
-Dashboard: http://localhost:8000/dashboard
-"""
+
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +18,8 @@ from utils import (
 )
 from ml_models import predict_lstm, analyze_sentiment, predict_all_stocks
 
-# ─────────────────────────────────────────────
 # APP SETUP
-# ─────────────────────────────────────────────
+
 
 APP_VERSION = "1.1.0"
 
@@ -63,14 +56,13 @@ app.add_middleware(
 )
 
 # Serve frontend static files
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+BASE_DIR = os.path.dirname(__file__)
+FRONTEND_FILE = os.path.join(BASE_DIR, "index.html")
 if os.path.exists(FRONTEND_DIR):
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
-# ─────────────────────────────────────────────
 # GENERAL
-# ─────────────────────────────────────────────
 
 @app.get("/", include_in_schema=False)
 def root():
@@ -90,21 +82,17 @@ def health_check():
         "frontend_path": index_path,
     }
 
-@app.get("/dashboard", tags=["General"], include_in_schema=False)
-def serve_dashboard():
-    """Serve the frontend dashboard HTML page."""
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    if os.path.exists(FRONTEND_FILE):
+        return FileResponse(FRONTEND_FILE)
     return JSONResponse(
         status_code=404,
-        content={"message": "Frontend not found. Ensure frontend/index.html exists."},
+        content={"message": "Frontend not found. Ensure backend/index.html exists."}
     )
 
 
-# ─────────────────────────────────────────────
 # STOCKS
-# ─────────────────────────────────────────────
 
 @app.get("/stocks", tags=["Stocks"])
 def list_stocks():
