@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📈 StockSense — Stock Data Intelligence Dashboard
 
 > A mini financial data platform built with FastAPI, yfinance, scikit-learn, TensorFlow, and Chart.js.
@@ -283,3 +284,6 @@ Returns a friendly error if the same symbol is passed twice.
 
 Built for the **Jarnox Internship Assignment**.
 Data source: Yahoo Finance via the `yfinance` library.
+=======
+# stock-data-platform
+>>>>>>> 0aee87ef5cb6f316c9d6f5b5aeb16d02a7b7682e
