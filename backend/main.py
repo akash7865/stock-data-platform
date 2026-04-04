@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 import pandas as pd
 import os
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from utils import (
     get_all_symbols,
@@ -71,43 +72,23 @@ if os.path.exists(FRONTEND_DIR):
 # GENERAL
 # ─────────────────────────────────────────────
 
-@app.get("/", tags=["General"])
+@app.get("/", include_in_schema=False)
 def root():
-    """API info, version, and link to Swagger docs."""
-    return {
-        "app":       "Stock Data Intelligence Dashboard",
-        "version":   APP_VERSION,
-        "docs":      "/docs",
-        "dashboard": "/dashboard",
-        "health":    "/health",
-        "endpoints": {
-            "stocks":      ["/stocks", "/stocks/{symbol}", "/stocks/{symbol}/summary"],
-            "prediction":  ["/stocks/{symbol}/predict", "/stocks/{symbol}/predict/lstm"],
-            "market":      ["/market/gainers-losers", "/market/correlation", "/market/predict-all"],
-            "sentiment":   ["/stocks/{symbol}/sentiment"],
-        },
-    }
-
+    return RedirectResponse(url="/dashboard")
 
 @app.get("/health", tags=["General"])
 def health_check():
-    """
-    Lightweight health check for Docker / deployment monitoring.
-    Returns 200 OK when the server is up and the database is reachable.
-    """
-    db_ok = os.path.exists(
-        os.path.join(os.path.dirname(__file__), "database.db")
-    )
-    if not db_ok:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status":  "degraded",
-                "message": "database.db missing — run: python backend/data.py",
-            },
-        )
-    return {"status": "ok", "version": APP_VERSION, "database": "reachable"}
+    db_path = os.path.join(os.path.dirname(__file__), "database.db")
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
 
+    return {
+        "status": "ok" if os.path.exists(db_path) else "degraded",
+        "version": APP_VERSION,
+        "database_exists": os.path.exists(db_path),
+        "frontend_exists": os.path.exists(index_path),
+        "db_path": db_path,
+        "frontend_path": index_path,
+    }
 
 @app.get("/dashboard", tags=["General"], include_in_schema=False)
 def serve_dashboard():
