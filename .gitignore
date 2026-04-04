@@ -1,8 +1,15 @@
-backend/database.db
-data/stock_data.csv
+# Python
 __pycache__/
 *.pyc
-*.pyo
+
+# Database (DO NOT PUSH)
+backend/database.db
+
+# Data files (optional)
+data/
+
+# Environment
+.env
+
+# Mac
 .DS_Store
-venv/
-env/
