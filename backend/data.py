@@ -1,25 +1,12 @@
-"""
-data.py — Stock Data Collection, Cleaning & Storage
-─────────────────────────────────────────────────────
-Pipeline steps:
-  1. Fetch 1 year of daily OHLCV data for NSE stocks via yfinance
-  2. Clean: coerce bad dates, drop nulls, enforce numeric types
-  3. Enrich: compute daily_return (%), MAs, 52W H/L, volatility, momentum
-  4. Save: write to CSV and SQLite (stock_data + stock_snapshot tables)
 
-Convention: daily_return is stored as a percentage value.
-  e.g.  +1.25 means the stock gained 1.25% that day
-        -0.80 means the stock fell 0.80% that day
-"""
 
 import yfinance as yf
 import pandas as pd
 import sqlite3
 import os
 
-# ─────────────────────────────────────────────
+
 # CONFIGURATION
-# ─────────────────────────────────────────────
 
 STOCKS = {
     "RELIANCE":   "RELIANCE.NS",
@@ -38,9 +25,7 @@ DB_PATH  = os.path.join(os.path.dirname(__file__), "database.db")
 CSV_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "stock_data.csv")
 
 
-# ─────────────────────────────────────────────
 # STEP 1: FETCH
-# ─────────────────────────────────────────────
 
 def fetch_stock_data(period: str = "1y") -> pd.DataFrame:
     """
@@ -82,9 +67,7 @@ def fetch_stock_data(period: str = "1y") -> pd.DataFrame:
     return combined
 
 
-# ─────────────────────────────────────────────
 # STEP 2: CLEAN
-# ─────────────────────────────────────────────
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -128,9 +111,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ─────────────────────────────────────────────
 # STEP 3: ENRICH WITH METRICS
-# ─────────────────────────────────────────────
 
 def add_metrics(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -193,9 +174,8 @@ def add_metrics(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-# ─────────────────────────────────────────────
 # STEP 4: SAVE
-# ─────────────────────────────────────────────
+
 
 def save_to_csv(df: pd.DataFrame) -> None:
     """Write the enriched dataframe to CSV."""
@@ -244,31 +224,49 @@ def save_to_sqlite(df: pd.DataFrame) -> None:
     print(f"💾 DB   → {DB_PATH}  (tables: stock_data, stock_snapshot)")
 
 
-# ─────────────────────────────────────────────
 # PIPELINE ENTRY POINT
-# ─────────────────────────────────────────────
 
 def run_pipeline() -> pd.DataFrame:
-    """Fetch → Clean → Enrich → Save.  Returns the enriched dataframe."""
+    """Fetch → Clean → Enrich → Save. Returns the enriched dataframe.
+    If live Yahoo fetch fails, fall back to bundled CSV data.
+    """
     print("=" * 55)
     print("  🚀 Stock Data Pipeline")
     print("=" * 55)
 
-    raw      = fetch_stock_data(period="1y")
-    cleaned  = clean_data(raw)
-    enriched = add_metrics(cleaned)
+    try:
+        raw = fetch_stock_data(period="1y")
+        cleaned = clean_data(raw)
+        enriched = add_metrics(cleaned)
+        save_to_csv(enriched)
+        save_to_sqlite(enriched)
 
-    save_to_csv(enriched)
-    save_to_sqlite(enriched)
+        print("\n" + "=" * 55)
+        print("  ✅ Pipeline complete (live Yahoo data)")
+        print(f"  📊 {enriched['symbol'].nunique()} stocks | {len(enriched):,} rows")
+        print(f"  📅 {enriched['date'].min().date()} → {enriched['date'].max().date()}")
+        print("=" * 55)
+        return enriched
 
-    print("\n" + "=" * 55)
-    print("  ✅ Pipeline complete!")
-    print(f"  📊 {enriched['symbol'].nunique()} stocks | {len(enriched):,} rows")
-    print(f"  📅 {enriched['date'].min().date()} → {enriched['date'].max().date()}")
-    print("=" * 55)
+    except Exception as exc:
+        print(f"\n⚠️ Live fetch failed: {exc}")
+        print("📦 Trying fallback CSV...")
 
-    return enriched
+        fallback_csv = os.path.join(os.path.dirname(__file__), "stock_data.csv")
+        if not os.path.exists(fallback_csv):
+            raise RuntimeError(
+                "Live fetch failed and fallback stock_data.csv was not found."
+            )
 
+        df = pd.read_csv(fallback_csv)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df.dropna(subset=["date"], inplace=True)
 
-if __name__ == "__main__":
-    run_pipeline()
+        save_to_sqlite(df)
+
+        print("\n" + "=" * 55)
+        print("  ✅ Pipeline complete (fallback CSV)")
+        print(f"  📊 {df['symbol'].nunique()} stocks | {len(df):,} rows")
+        print(f"  📅 {df['date'].min().date()} → {df['date'].max().date()}")
+        print("=" * 55)
+        return df
