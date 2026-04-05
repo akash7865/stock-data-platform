@@ -18,11 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create data directory
-RUN mkdir -p data
+RUN python backend/data.py
 
 # Run data pipeline first, then start API server
 # The CMD will: (1) fetch & build DB, (2) start FastAPI
-CMD ["sh", "-c", "python data.py && uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Expose port 8000
 EXPOSE 8000
